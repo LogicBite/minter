@@ -3,15 +3,21 @@ package main
 import (
 	"bytes"
 	"crypto/ed25519"
+	"fmt"
 
 	"golang.org/x/crypto/sha3"
 )
 
+// Position denotes where an asset is located on the chain
+type Position struct {
+	BlockHash [32]byte
+	Index     int
+}
+
 // Asset is some data to add to the chain
 type Asset struct {
-	Data       []byte
 	Signature  []byte
-	PrevOwner  ed25519.PublicKey
+	PrevTx     Position
 	Owner      ed25519.PublicKey
 	Creator    ed25519.PublicKey
 	TransferID [32]byte
@@ -19,7 +25,7 @@ type Asset struct {
 }
 
 func (m *Asset) serialize() []byte {
-	return append(append(append(append(append(m.Data, m.PrevOwner...), m.Owner...), m.Creator...), m.Hash[:]...))
+	return append(append(m.Owner, m.Creator...), m.Hash[:]...)
 }
 
 func (m *Asset) getTransferID() [32]byte {
@@ -28,22 +34,20 @@ func (m *Asset) getTransferID() [32]byte {
 
 func (m *Asset) sign(key ed25519.PrivateKey) {
 	m.TransferID = m.getTransferID()
-	m.Signature = ed25519.Sign(key, m.serialize())
+	m.Signature = ed25519.Sign(key, m.TransferID[:])
 }
 
 func (m *Asset) verify() bool {
 	txID := m.getTransferID()
 	if !bytes.Equal(m.TransferID[:], txID[:]) {
+		fmt.Println("Bad tx id")
 		return false
 	}
 
-	dataID := sha3.Sum256(m.Data)
-	if !bytes.Equal(m.Hash[:], dataID[:]) {
-		return false
-	}
-
-	if !ed25519.Verify(m.PrevOwner, m.serialize(), m.Signature) {
-		return false
+	if m.PrevTx == (Position{}) {
+		if !bytes.Equal(m.Creator, m.Owner) {
+			return false
+		}
 	}
 
 	return true

@@ -21,6 +21,12 @@ func check(e error) {
 	}
 }
 
+// AssetRes is the response from the assets/{hash} endpoint
+type AssetRes struct {
+	Data     Asset
+	Position Position
+}
+
 func main() {
 	generateKeys := flag.Bool("keypair", false, "Generates and displays new private and public keys --keypair")
 	keyStr := flag.String("key", "", "Sets the private key --key 2c3cc26268eaaca1be7b1bf88c0fcf0a1e07e9065c01add4aad228a1a030ed06d3941323359272d3516d92468d4ce65df9b54bdbcbe90d2e7b93aa4c9145d599")
@@ -61,24 +67,23 @@ func main() {
 
 	if *mint {
 		payload = Asset{
-			Data:      dat,
-			Hash:      sha3.Sum256(dat),
-			PrevOwner: pubKey,
-			Owner:     pubKey,
-			Creator:   pubKey,
+			PrevTx:  Position{},
+			Hash:    sha3.Sum256(dat),
+			Owner:   pubKey,
+			Creator: pubKey,
 		}
 	} else {
 		hash := sha3.Sum256(dat)
 
-		resp, err := http.Get("http://localhost:13131/assets/" + hex.EncodeToString(hash[:]))
+		resp, err := http.Get("http://localhost:13131/tokens/" + hex.EncodeToString(hash[:]))
 		check(err)
 		body, err := ioutil.ReadAll(resp.Body)
 
-		asset := Asset{}
-		msgpack.Unmarshal(body, &asset)
+		res := AssetRes{}
+		msgpack.Unmarshal(body, &res)
 
 		empty := [32]byte{}
-		if bytes.Equal(empty[:], asset.Hash[:]) {
+		if bytes.Equal(empty[:], res.Data.Hash[:]) {
 			fmt.Println("No token found on the blockchain for this file. Use --mint to mint it.")
 			os.Exit(1)
 		}
@@ -92,11 +97,10 @@ func main() {
 		sendTo, err = hex.DecodeString(*sendAddress)
 
 		payload = Asset{
-			Data:      dat,
-			Hash:      sha3.Sum256(dat),
-			PrevOwner: pubKey,
-			Owner:     sendTo,
-			Creator:   pubKey,
+			Hash:    sha3.Sum256(dat),
+			PrevTx:  Position{},
+			Owner:   sendTo,
+			Creator: pubKey,
 		}
 	}
 
@@ -105,7 +109,7 @@ func main() {
 	body, err := msgpack.Marshal(&payload)
 	check(err)
 
-	resp, err := http.Post("http://localhost:13131/mint", "application/msgpack", bytes.NewBuffer(body))
+	resp, err := http.Post("http://localhost:13131/tokens/mint", "application/msgpack", bytes.NewBuffer(body))
 	check(err)
 	if resp.StatusCode == 201 {
 		status := ""
