@@ -75,7 +75,7 @@ func main() {
 	} else {
 		hash := sha3.Sum256(dat)
 
-		resp, err := http.Get("http://localhost:13131/tokens/" + hex.EncodeToString(hash[:]))
+		resp, err := http.Get("http://104.238.147.196:13131/tokens/" + hex.EncodeToString(hash[:]))
 		check(err)
 		body, err := ioutil.ReadAll(resp.Body)
 
