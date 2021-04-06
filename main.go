@@ -109,7 +109,7 @@ func main() {
 	body, err := msgpack.Marshal(&payload)
 	check(err)
 
-	resp, err := http.Post("http://localhost:13131/tokens/mint", "application/msgpack", bytes.NewBuffer(body))
+	resp, err := http.Post("http://104.238.147.196:13131/tokens/mint", "application/msgpack", bytes.NewBuffer(body))
 	check(err)
 	if resp.StatusCode == 201 {
 		status := ""
